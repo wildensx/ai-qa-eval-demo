@@ -6,8 +6,13 @@ on:
   schedule:
     - cron: "0 12 * * 1"  # weekly run, like a scheduled service check
 
+env:
+  DEEPEVAL_TELEMETRY_OPT_OUT: "YES"
+  PROMPTFOO_DISABLE_TELEMETRY: "1"
+
 jobs:
-  test:
+  python:
+    name: pytest (API, eval gate, DeepEval, SQL, Playwright Python)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,8 +22,7 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
       - run: python -m playwright install --with-deps chromium
-      - name: API, evaluation gate and E2E tests
-        run: python -m pytest -v --junitxml=reports/junit.xml
+      - run: python -m pytest -v --junitxml=reports/junit.xml
       - name: Evaluation report
         if: always()
         run: |
@@ -27,5 +31,51 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: reports
+          name: python-reports
           path: reports/
+
+  typescript:
+    name: Playwright TypeScript (UI + API)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install fastapi==0.135.2 uvicorn==0.42.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - working-directory: ts-e2e
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+          npx playwright test
+        env:
+          CI: "true"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-ts-report
+          path: reports/playwright-ts/
+
+  promptfoo:
+    name: promptfoo regression checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install fastapi==0.135.2 uvicorn==0.42.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Start service
+        run: |
+          python -m uvicorn app.main:app --port 8765 &
+          until curl -s http://127.0.0.1:8765/health; do sleep 1; done
+      - working-directory: promptfoo
+        run: npx -y promptfoo@0.125.1 eval --no-cache --no-progress-bar --no-share

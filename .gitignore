@@ -3,3 +3,5 @@ __pycache__/
 .pytest_cache/
 reports/
 test-results/
+node_modules/
+ts-e2e/test-results/
