@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Policy assistant demo</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
+    input { width: 100%; padding: 10px; font-size: 16px; box-sizing: border-box; }
+    button { margin-top: 8px; padding: 10px 16px; font-size: 16px; }
+    #answer { margin-top: 20px; padding: 12px; background: #f3f4f6; border-radius: 6px; min-height: 1.5em; }
+    #citations { color: #555; font-size: 14px; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <h1>Lumen Travel policy assistant</h1>
+  <label for="question">Ask about refunds, baggage, pets, check-in or Lumen Miles</label>
+  <input id="question" placeholder="How many days do I have to request a full refund?">
+  <button id="ask">Ask</button>
+  <div id="answer" data-testid="answer" aria-live="polite"></div>
+  <div id="citations" data-testid="citations"></div>
+  <script>
+    document.getElementById('ask').addEventListener('click', async () => {
+      const question = document.getElementById('question').value;
+      const res = await fetch('/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': 'demo-key' },
+        body: JSON.stringify({ question })
+      });
+      const data = await res.json();
+      document.getElementById('answer').textContent = res.ok ? data.answer : 'Error: ' + res.status;
+      document.getElementById('citations').textContent = res.ok && data.citations.length ? 'Source: ' + data.citations.join(', ') : '';
+    });
+  </script>
+</body>
+</html>
